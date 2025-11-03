@@ -2,3 +2,4 @@ bin
 build
 HevSocks5Tunnel.xcframework
 .idea
+.DS_Store
