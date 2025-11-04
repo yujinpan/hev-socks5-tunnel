@@ -333,28 +333,7 @@ hev_socks5_client_handshake_standard (HevSocks5Client *self)
 {
     int res;
 
-    LOG_D ("%p socks5 client handshake standard", self);
-
-    res = hev_socks5_client_write_auth_methods (self);
-    if (res < 0)
-        return -1;
-
-    res = hev_socks5_client_read_auth_method (self);
-    if (res < 0)
-        return -1;
-
-    if (res == HEV_SOCKS5_AUTH_METHOD_USER) {
-        res = hev_socks5_client_write_auth_creds (self);
-        if (res < 0)
-            return -1;
-
-        res = hev_socks5_client_read_auth_creds (self);
-        if (res < 0)
-            return -1;
-    } else if (res != HEV_SOCKS5_AUTH_METHOD_NONE) {
-        LOG_E ("%p socks5 client auth method %d", self, res);
-        return -1;
-    }
+    LOG_D ("%p socks5 client skipping Handshake", self);
 
     res = hev_socks5_client_write_request (self);
     if (res < 0)
@@ -372,32 +351,11 @@ hev_socks5_client_handshake_pipeline (HevSocks5Client *self)
 {
     int res;
 
-    LOG_D ("%p socks5 client handshake pipeline", self);
-
-    res = hev_socks5_client_write_auth_methods (self);
-    if (res < 0)
-        return -1;
-
-    res = hev_socks5_client_write_auth_creds (self);
-    if (res < 0)
-        return -1;
+    LOG_D ("%p socks5 client skipping Handshake", self);
 
     res = hev_socks5_client_write_request (self);
     if (res < 0)
         return -1;
-
-    res = hev_socks5_client_read_auth_method (self);
-    if (res < 0)
-        return -1;
-
-    if (res == HEV_SOCKS5_AUTH_METHOD_USER) {
-        res = hev_socks5_client_read_auth_creds (self);
-        if (res < 0)
-            return -1;
-    } else if (res != HEV_SOCKS5_AUTH_METHOD_NONE) {
-        LOG_E ("%p socks5 client auth method %d", self, res);
-        return -1;
-    }
 
     res = hev_socks5_client_read_response (self);
     if (res < 0)
