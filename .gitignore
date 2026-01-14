@@ -1,6 +1,6 @@
 bin
 build
-HevSocks5Tunnel.xcframework
+*.xcframework
 obj
 libs
 .idea
