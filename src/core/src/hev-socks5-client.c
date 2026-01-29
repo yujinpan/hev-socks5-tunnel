@@ -220,20 +220,6 @@ hev_socks5_client_handshake_standard (HevSocks5Client *self)
 
     LOG_D ("%p socks5 client skipping Handshake", self);
 
-    res = hev_socks5_client_read_response (self);
-    if (res < 0)
-        return -1;
-
-    return 0;
-}
-
-static int
-hev_socks5_client_handshake_pipeline (HevSocks5Client *self)
-{
-    int res;
-
-    LOG_D ("%p socks5 client skipping Handshake", self);
-
     res = hev_socks5_client_write_request (self);
     if (res < 0)
         return -1;
@@ -248,9 +234,6 @@ hev_socks5_client_handshake_pipeline (HevSocks5Client *self)
 int
 hev_socks5_client_handshake (HevSocks5Client *self, int pipeline)
 {
-    if (pipeline)
-        return hev_socks5_client_handshake_pipeline (self);
-
     return hev_socks5_client_handshake_standard (self);
 }
 
