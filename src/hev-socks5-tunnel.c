@@ -2,7 +2,7 @@
  ============================================================================
  Name        : hev-socks5-tunnel.c
  Author      : hev <r@hev.cc>
- Copyright   : Copyright (c) 2019 - 2025 hev
+ Copyright   : Copyright (c) 2019 - 2023 hev
  Description : Socks5 Tunnel
  ============================================================================
  */
@@ -73,7 +73,21 @@ netif_output_handler (struct netif *netif, struct pbuf *p)
 {
     ssize_t s;
 
-    s = hev_tunnel_write (tun_fd, p);
+    if (p->next) {
+        struct iovec iov[512];
+        int i;
+
+        for (i = 1; p && (i < 512); p = p->next) {
+            iov[i].iov_base = p->payload;
+            iov[i].iov_len = p->len;
+            i++;
+        }
+
+        s = hev_tunnel_writev (tun_fd, iov, i);
+    } else {
+        s = hev_tunnel_write (tun_fd, p->payload, p->len);
+    }
+
     if (s <= 0) {
         if (errno == EAGAIN)
             return ERR_WOULDBLOCK;
@@ -305,13 +319,27 @@ lwip_io_task_entry (void *data)
 
     for (; run;) {
         struct pbuf *buf;
+        ssize_t s;
 
-        buf = hev_tunnel_read (tun_fd, mtu, task_io_yielder, NULL);
-        if (!buf)
+        buf = pbuf_alloc (PBUF_RAW, mtu, PBUF_RAM);
+        if (!buf) {
+            LOG_E ("socks5 tunnel alloc");
+            hev_task_sleep (100);
             continue;
+        }
+
+        s = hev_tunnel_read (tun_fd, buf->payload, buf->len, task_io_yielder,
+                             NULL);
+
+        if (s <= 0) {
+            if (s > -2)
+                LOG_W ("socks5 tunnel read");
+            pbuf_free (buf);
+            continue;
+        }
 
         stat_tx_packets++;
-        stat_tx_bytes += buf->tot_len;
+        stat_tx_bytes += s;
 
         hev_task_mutex_lock (&mutex);
         if (netif.input (buf, &netif) != ERR_OK)
@@ -535,7 +563,7 @@ lwip_io_task_init (void)
         LOG_E ("socks5 tunnel task lwip");
         return -1;
     }
-    hev_task_set_priority (task_lwip_io, 1);
+    hev_task_set_priority (task_lwip_io, HEV_TASK_PRIORITY_REALTIME);
 
     return 0;
 }
@@ -557,7 +585,7 @@ lwip_timer_task_init (void)
         LOG_E ("socks5 tunnel task timer");
         return -1;
     }
-    hev_task_set_priority (task_lwip_timer, 1);
+    hev_task_set_priority (task_lwip_timer, HEV_TASK_PRIORITY_REALTIME);
 
     return 0;
 }
