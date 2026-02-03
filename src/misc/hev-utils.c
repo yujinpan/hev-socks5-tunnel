@@ -22,7 +22,6 @@
 #include <hev-socks5-misc.h>
 
 #include "hev-logger.h"
-#include "hev-mapped-dns.h"
 
 #include "hev-utils.h"
 
@@ -85,17 +84,9 @@ int
 hev_socks5_addr_from_lwip (HevSocks5Addr *addr, const ip_addr_t *ip, u16_t port)
 {
     switch (ip->type) {
-    case IPADDR_TYPE_V4: {
-        HevMappedDNS *dns = hev_mapped_dns_get ();
-        const char *name = NULL;
-        if (dns)
-            name = hev_mapped_dns_lookup (dns, ntohl (ip_2_ip4 (ip)->addr));
-        if (name)
-            hev_socks5_addr_from_name (addr, name, htons (port));
-        else
-            hev_socks5_addr_from_ipv4 (addr, ip, htons (port));
+    case IPADDR_TYPE_V4:
+        hev_socks5_addr_from_ipv4 (addr, ip, htons (port));
         return 0;
-    }
     case IPADDR_TYPE_V6:
         hev_socks5_addr_from_ipv6 (addr, ip, htons (port));
         return 0;

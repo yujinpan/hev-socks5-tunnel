@@ -118,18 +118,6 @@ socks5:
   # Socket mark
 # mark: 0
 
-#mapdns:
-  # Mapped DNS address
-# address: 198.18.0.2
-  # Mapped DNS port
-# port: 53
-  # Mapped IP network base
-# network: 100.64.0.0
-  # Mapped IP network mask
-# netmask: 255.192.0.0
-  # Mapped DNS cache size
-# cache-size: 10000
-
 #misc:
   # task stack size (bytes)
 # task-stack-size: 86016
