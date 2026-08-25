@@ -184,7 +184,7 @@ void hev_socks5_tunnel_stats (size_t *tx_packets, size_t *tx_bytes,
 
 ### iOS
 
-* [Tun2SocksKit](https://github.com/EbrahimTahernejad/Tun2SocksKit)
+* [Aestate](https://apps.apple.com/us/app/aestate/id6749141594)
 
 ## Contributors
 
