@@ -7,9 +7,6 @@
  ============================================================================
  */
 
-#include <string.h>
-
-#include "hev-utils.h"
 #include "hev-logger.h"
 #include "hev-config.h"
 #include "hev-socks5-client.h"
@@ -34,13 +31,7 @@ hev_socks5_session_run (HevSocks5Session *self)
         return;
     }
 
-    if (srv->user && srv->pass) {
-        hev_socks5_client_set_auth (HEV_SOCKS5_CLIENT (self), srv->user,
-                                    srv->pass);
-        LOG_D ("%p socks5 client auth %s:%s", self, srv->user, srv->pass);
-    }
-
-    res = hev_socks5_client_handshake (HEV_SOCKS5_CLIENT (self), srv->pipeline);
+    res = hev_socks5_client_handshake (HEV_SOCKS5_CLIENT (self));
     if (res < 0) {
         LOG_I ("%p socks5 session handshake", self);
         return;
@@ -83,23 +74,10 @@ hev_socks5_session_get_node (HevSocks5Session *self)
 int
 hev_socks5_session_bind (HevSocks5 *self, int fd, const struct sockaddr *dest)
 {
-    HevConfigServer *srv;
-    unsigned int mark;
-
     LOG_D ("%p socks5 session bind", self);
 
-    srv = hev_config_get_socks5_server ();
-    mark = srv->mark;
-
-    if (mark) {
-        int res;
-
-        res = set_sock_mark (fd, mark);
-        if (res < 0)
-            return -1;
-    }
-
-    set_sock_tcp_fastopen (fd, srv->fastopen);
+    (void)fd;
+    (void)dest;
 
     return 0;
 }

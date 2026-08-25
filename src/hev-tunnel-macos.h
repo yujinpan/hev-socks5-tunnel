@@ -46,7 +46,7 @@ hev_tunnel_write (int fd, struct pbuf *buf)
 {
     struct iovec iov[512];
     struct pbuf *p = buf;
-    uint32_t type = 0;
+    uint32_t type = htonl (AF_INET);
     ssize_t res;
     int i;
 
@@ -57,13 +57,6 @@ hev_tunnel_write (int fd, struct pbuf *buf)
         iov[i].iov_base = p->payload;
         iov[i].iov_len = p->len;
         i++;
-
-        if (!type && p->len) {
-            if (((*(uint8_t *)p->payload >> 4) & 0xF) == 4)
-                type = htonl (AF_INET);
-            else
-                type = htonl (AF_INET6);
-        }
     }
 
     res = writev (fd, iov, i);

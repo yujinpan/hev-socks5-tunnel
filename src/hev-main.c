@@ -10,6 +10,8 @@
 #include <stdio.h>
 #include <signal.h>
 #include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include <lwip/init.h>
 
@@ -17,7 +19,6 @@
 #include <hev-task-system.h>
 #include <hev-socks5-misc.h>
 
-#include "hev-utils.h"
 #include "hev-config.h"
 #include "hev-config-const.h"
 #include "hev-logger.h"
@@ -29,10 +30,8 @@
 static int
 hev_socks5_tunnel_main_inner (int tun_fd)
 {
-    const char *pid_file;
     const char *log_file;
     int log_level;
-    int nofile;
     int res;
 
     log_file = hev_config_get_misc_log_file ();
@@ -55,15 +54,6 @@ hev_socks5_tunnel_main_inner (int tun_fd)
     res = hev_socks5_logger_init (log_level, log_file);
     if (res < 0)
         goto free_logger;
-
-    nofile = hev_config_get_misc_limit_nofile ();
-    res = set_limit_nofile (nofile);
-    if (res < 0)
-        LOG_I ("set limit nofile");
-
-    pid_file = hev_config_get_misc_pid_file ();
-    if (pid_file)
-        run_as_daemon (pid_file);
 
     res = hev_task_system_init ();
     if (res < 0)
@@ -90,30 +80,13 @@ exit:
 }
 
 int
-hev_socks5_tunnel_main_from_file (const char *config_path, int tun_fd)
+hev_socks5_tunnel_main (const HevSocks5TunnelConfig *config, int tun_fd)
 {
-    int res = hev_config_init_from_file (config_path);
+    int res = hev_config_init (config);
     if (res < 0)
         return -1;
 
     return hev_socks5_tunnel_main_inner (tun_fd);
-}
-
-int
-hev_socks5_tunnel_main_from_str (const unsigned char *config_str,
-                                 unsigned int config_len, int tun_fd)
-{
-    int res = hev_config_init_from_str (config_str, config_len);
-    if (res < 0)
-        return -1;
-
-    return hev_socks5_tunnel_main_inner (tun_fd);
-}
-
-int
-hev_socks5_tunnel_main (const char *config_path, int tun_fd)
-{
-    return hev_socks5_tunnel_main_from_file (config_path, tun_fd);
 }
 
 void
@@ -126,7 +99,8 @@ hev_socks5_tunnel_quit (void)
 static void
 show_help (const char *self_path)
 {
-    printf ("%s CONFIG_PATH\n", self_path);
+    printf ("%s [-s ADDR] [-p PORT] [-n NAME] [-4 IPV4] [-m MTU]\n",
+            self_path);
     printf ("Version: %u.%u.%u %s\n", MAJOR_VERSION, MINOR_VERSION,
             MICRO_VERSION, COMMIT_ID);
 }
@@ -140,9 +114,37 @@ sig_handler (int signum)
 int
 main (int argc, char *argv[])
 {
+    HevSocks5TunnelConfig config = { 0 };
     int res;
+    int opt;
 
-    if (argc < 2 || strcmp (argv[1], "--version") == 0) {
+    config.socks5_address = "127.0.0.1";
+    config.socks5_port = 1080;
+
+    while ((opt = getopt (argc, argv, "s:p:n:4:m:h")) != -1) {
+        switch (opt) {
+        case 's':
+            config.socks5_address = optarg;
+            break;
+        case 'p':
+            config.socks5_port = (unsigned short)strtoul (optarg, NULL, 10);
+            break;
+        case 'n':
+            config.tunnel_name = optarg;
+            break;
+        case '4':
+            config.tunnel_ipv4 = optarg;
+            break;
+        case 'm':
+            config.tunnel_mtu = (unsigned int)strtoul (optarg, NULL, 10);
+            break;
+        default:
+            show_help (argv[0]);
+            return -1;
+        }
+    }
+
+    if (optind < argc && strcmp (argv[optind], "--version") == 0) {
         show_help (argv[0]);
         return -1;
     }
@@ -150,7 +152,7 @@ main (int argc, char *argv[])
     signal (SIGINT, sig_handler);
     signal (SIGTERM, sig_handler);
 
-    res = hev_socks5_tunnel_main (argv[1], -1);
+    res = hev_socks5_tunnel_main (&config, -1);
     if (res < 0)
         return -2;
 

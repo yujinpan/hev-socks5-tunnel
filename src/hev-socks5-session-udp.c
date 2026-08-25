@@ -138,16 +138,10 @@ hev_socks5_session_udp_fwd_b (HevSocks5SessionUDP *self, unsigned int num)
         if (!msgv[i].addr || msgv[i].len == 0)
             continue;
 
-        if (self->addr && self->port) {
-            ip_2_ip4 (&saddr)->addr = self->addr;
-            saddr.type = IPADDR_TYPE_V4;
-            port = self->port;
-        } else {
-            ret = hev_socks5_addr_into_lwip (msgv[i].addr, &saddr, &port);
-            if (ret < 0) {
-                LOG_D ("%p socks5 session udp fwd b addr", self);
-                return -1;
-            }
+        ret = hev_socks5_addr_into_lwip (msgv[i].addr, &saddr, &port);
+        if (ret < 0) {
+            LOG_D ("%p socks5 session udp fwd b addr", self);
+            return -1;
         }
 
         b = pbuf_alloc_reference (msgv[i].buf, msgv[i].len, PBUF_REF);
@@ -196,11 +190,6 @@ udp_recv_handler (void *arg, struct udp_pcb *pcb, struct pbuf *p,
     frame->data = p;
     memset (&frame->node, 0, sizeof (frame->node));
     hev_socks5_addr_from_lwip (&frame->addr, &pcb->local_ip, pcb->local_port);
-
-    if (frame->addr.atype == HEV_SOCKS5_ADDR_TYPE_NAME) {
-        self->addr = ip_2_ip4 (&pcb->local_ip)->addr;
-        self->port = pcb->local_port;
-    }
 
     self->frames++;
     hev_list_add_tail (&self->frame_list, &frame->node);
@@ -254,7 +243,7 @@ hev_socks5_session_udp_set_upstream_addr (HevSocks5Client *base,
     HevConfigServer *srv = hev_config_get_socks5_server ();
     HevSocks5ClientClass *ckptr;
 
-    if (srv->udp_in_udp && srv->udp_addr[0]) {
+    if (srv->udp_addr[0]) {
         uint16_t port = hev_socks5_addr_get_port (addr);
         hev_socks5_addr_from_name (addr, srv->udp_addr, port);
     }
@@ -327,16 +316,10 @@ int
 hev_socks5_session_udp_construct (HevSocks5SessionUDP *self,
                                   struct udp_pcb *pcb, HevTaskMutex *mutex)
 {
-    HevConfigServer *srv = hev_config_get_socks5_server ();
-    int type;
     int res;
 
-    if (srv->udp_in_udp)
-        type = HEV_SOCKS5_TYPE_UDP_IN_UDP;
-    else
-        type = HEV_SOCKS5_TYPE_UDP_IN_TCP;
-
-    res = hev_socks5_client_udp_construct (&self->base, type);
+    res = hev_socks5_client_udp_construct (&self->base,
+                                           HEV_SOCKS5_TYPE_UDP_IN_UDP);
     if (res < 0)
         return -1;
 

@@ -17,68 +17,58 @@ extern "C" {
 #endif
 
 /**
+ * HevSocks5TunnelConfig:
+ *
+ * Zero-initialized fields use built-in defaults. socks5_address and
+ * socks5_port are required.
+ */
+typedef struct _HevSocks5TunnelConfig HevSocks5TunnelConfig;
+
+struct _HevSocks5TunnelConfig
+{
+    const char *socks5_address;
+    unsigned short socks5_port;
+    const char *socks5_udp_address;
+
+    const char *tunnel_name;
+    unsigned int tunnel_mtu;
+    const char *tunnel_ipv4;
+
+    int task_stack_size;
+    int tcp_buffer_size;
+    int udp_recv_buffer_size;
+    int udp_copy_buffer_nums;
+    int max_session_count;
+    int connect_timeout;
+    int tcp_read_write_timeout;
+    int udp_read_write_timeout;
+    const char *log_file;
+    const char *log_level;
+};
+
+/**
  * hev_socks5_tunnel_main:
- * @config_path: config file path
- * @tun_fd: tunnel file descriptor
+ * @config: tunnel configuration
+ * @tun_fd: tunnel file descriptor, or -1 to create one
  *
- * Start and run the socks5 tunnel, this function will blocks until the
- * hev_socks5_tunnel_quit is called or an error occurs.
+ * Start and run the socks5 tunnel. Blocks until hev_socks5_tunnel_quit
+ * is called or an error occurs.
  *
- * Returns: returns zero on successful, otherwise returns -1.
- *
- * Since: 2.4.6
+ * Returns: zero on success, otherwise -1.
  */
-int hev_socks5_tunnel_main (const char *config_path, int tun_fd);
-
-/**
- * hev_socks5_tunnel_main_from_file:
- * @config_path: config file path
- * @tun_fd: tunnel file descriptor
- *
- * Start and run the socks5 tunnel, this function will blocks until the
- * hev_socks5_tunnel_quit is called or an error occurs.
- *
- * Returns: returns zero on successful, otherwise returns -1.
- *
- * Since: 2.6.7
- */
-int hev_socks5_tunnel_main_from_file (const char *config_path, int tun_fd);
-
-/**
- * hev_socks5_tunnel_main_from_str:
- * @config_str: string config
- * @config_len: the byte length of string config
- * @tun_fd: tunnel file descriptor
- *
- * Start and run the socks5 tunnel, this function will blocks until the
- * hev_socks5_tunnel_quit is called or an error occurs.
- *
- * Returns: returns zero on successful, otherwise returns -1.
- *
- * Since: 2.6.7
- */
-int hev_socks5_tunnel_main_from_str (const unsigned char *config_str,
-                                     unsigned int config_len, int tun_fd);
+int hev_socks5_tunnel_main (const HevSocks5TunnelConfig *config, int tun_fd);
 
 /**
  * hev_socks5_tunnel_quit:
  *
  * Stop the socks5 tunnel.
- *
- * Since: 2.4.6
  */
 void hev_socks5_tunnel_quit (void);
 
 /**
  * hev_socks5_tunnel_stats:
- * @tx_packets (out): transmitted packets
- * @tx_bytes (out): transmitted bytes
- * @rx_packets (out): received packets
- * @rx_bytes (out): received bytes
  *
  * Retrieve tunnel interface traffic statistics.
- *
- * Since: 2.6.5
  */
 void hev_socks5_tunnel_stats (size_t *tx_packets, size_t *tx_bytes,
                               size_t *rx_packets, size_t *rx_bytes);

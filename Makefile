@@ -11,29 +11,23 @@ CCFLAGS=-O3 -pipe -Wall -Werror $(CFLAGS) \
 		-I$(SRCDIR) \
 		-I$(SRCDIR)/misc \
 		-I$(SRCDIR)/core/include  \
-		-I$(THIRDPARTDIR)/yaml/include \
-		-I$(THIRDPARTDIR)/wintun/include \
 		-I$(THIRDPARTDIR)/lwip/src/include \
 		-I$(THIRDPARTDIR)/lwip/src/ports/include \
 		-I$(THIRDPARTDIR)/hev-task-system/include
-LDFLAGS=-L$(THIRDPARTDIR)/yaml/bin -lyaml \
-		-L$(THIRDPARTDIR)/lwip/bin -llwip \
+LDFLAGS=-L$(THIRDPARTDIR)/lwip/bin -llwip \
 		-L$(THIRDPARTDIR)/hev-task-system/bin -lhev-task-system \
 		-lpthread $(LFLAGS)
 
 SRCDIR=src
 BINDIR=bin
-CONFDIR=conf
 BUILDDIR=build
 INSTDIR=/usr/local
 THIRDPARTDIR=third-part
 
-CONFIG=$(CONFDIR)/main.yml
 EXEC_TARGET=$(BINDIR)/hev-socks5-tunnel
 STATIC_TARGET=$(BINDIR)/lib$(PROJECT).a
 SHARED_TARGET=$(BINDIR)/lib$(PROJECT).so
-THIRDPARTS=$(THIRDPARTDIR)/yaml \
-		   $(THIRDPARTDIR)/lwip \
+THIRDPARTS=$(THIRDPARTDIR)/lwip \
 		   $(THIRDPARTDIR)/hev-task-system
 
 $(STATIC_TARGET) : CCFLAGS+=-DENABLE_LIBRARY
@@ -67,10 +61,6 @@ ifeq ($(ENABLE_STATIC),1)
 	CCFLAGS+=-static
 endif
 
-ifeq ($(MSYSTEM),MSYS)
-	LDFLAGS+=-lmsys-2.0 -lws2_32 -lIphlpapi
-endif
-
 V :=
 ECHO_PREFIX := @
 ifeq ($(V),1)
@@ -98,22 +88,15 @@ clean : tp-clean
 	$(ECHO_PREFIX) $(RM) -rf $(BINDIR) $(BUILDDIR)
 	@printf $(CLEANMSG) $(PROJECT)
 
-install : $(INSTDIR)/bin/$(PROJECT) $(INSTDIR)/etc/$(PROJECT).yml
+install : $(INSTDIR)/bin/$(PROJECT)
 
 uninstall :
 	$(ECHO_PREFIX) $(RM) -rf $(INSTDIR)/bin/$(PROJECT)
 	@printf $(UNINSMSG) $(INSTDIR)/bin/$(PROJECT)
-	$(ECHO_PREFIX) $(RM) -rf $(INSTDIR)/etc/$(PROJECT).yml
-	@printf $(UNINSMSG) $(INSTDIR)/etc/$(PROJECT).yml
 
 $(INSTDIR)/bin/$(PROJECT) : $(EXEC_TARGET)
 	$(ECHO_PREFIX) install -d -m 0755 $(dir $@)
 	$(ECHO_PREFIX) install -m 0755 $< $@
-	@printf $(INSTMSG) $< $@
-
-$(INSTDIR)/etc/$(PROJECT).yml : $(CONFIG)
-	$(ECHO_PREFIX) install -d -m 0755 $(dir $@)
-	$(ECHO_PREFIX) install -m 0644 $< $@
 	@printf $(INSTMSG) $< $@
 
 $(EXEC_TARGET) : $(LDOBJS) tp-static

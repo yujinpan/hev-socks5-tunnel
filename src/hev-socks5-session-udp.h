@@ -31,8 +31,6 @@ struct _HevSocks5SessionUDP
     struct udp_pcb *pcb;
     HevTaskMutex *mutex;
     int frames;
-    int addr;
-    int port;
 };
 
 struct _HevSocks5SessionUDPClass

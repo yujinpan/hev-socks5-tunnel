@@ -4,13 +4,36 @@
 
 A simple, lightweight tunnel over Socks5 proxy (tun2socks).
 
+## Simplifications on this branch
+
+Trimmed for an Apple local split-proxy: TUN traffic is forwarded to a local
+SOCKS server.
+
+- [x] Vendor `src/core` in-tree (no longer a submodule)
+- [x] Vendor `third-part/lwip` in-tree (no longer a submodule; IPv4-only `LWIP_IPV6=0`)
+- [x] Skip SOCKS5 authentication handshake (method / username-password). CONNECT and UDP ASSOCIATE are still sent
+- [x] Remove MapDNS (fake IP / mapped DNS cache)
+- [x] Remove local ICMP Echo (ping) replies (`icmp: reply` / `NETIF_FLAG_PRETEND_ICMP`)
+- [x] Remove `pipeline` / `username` / `password` (ignored after handshake skip)
+- [x] Remove `tcp-fastopen` / `mark` (Linux-only; no-ops on Apple)
+- [x] Remove `pid-file` / `limit-nofile` (standalone daemon, not library / Network Extension)
+- [x] Remove `post-up-script` / `pre-down-script` (skipped when the app passes `tun_fd`)
+- [x] Remove `multi-queue` (Linux TUN only)
+- [x] Remove SOCKS server code in `src/core`: `hev-socks5-server`, authenticator, user, rbtree
+- [x] Remove JNI, Windows/Linux/FreeBSD/NetBSD tun backends, wintun
+- [x] Remove UDP-in-TCP (`udp: tcp` / FWD UDP); UDP uses UDP ASSOCIATE only
+- [x] Disable IPv6 (`LWIP_IPV6`) if the split path is IPv4-only
+- [x] Drop YAML parser if config is a struct / hardcoded instead of `hev_socks5_tunnel_main_from_str`
+- [x] Drop tvOS slices in `build-apple.sh`
+
+Do not remove: TCP/UDP forwarding, session / lwIP TCP+UDP, `misc` buffer and session limits, `hev-tunnel-macos.c`, lwIP internal ICMP/ICMPv6 (NDP, dest-unreach).
+
 ## Features
 
-* IPv4/IPv6. (dual stack)
+* IPv4 TUN.
 * Redirect TCP connections.
-* Redirect UDP packets. (Fullcone NAT, UDP-in-UDP and UDP-in-TCP [^1])
-* Optional local ICMP Echo (ping) replies.
-* Linux/Android/FreeBSD/macOS/iOS/Windows.
+* Redirect UDP packets. (Fullcone NAT, UDP ASSOCIATE)
+* macOS / iOS.
 
 ## Benchmarks
 
@@ -33,44 +56,27 @@ See [here](https://github.com/heiher/hev-socks5-tunnel/wiki/Benchmarks) for more
 
 ## How to Build
 
-### Unix
+### Unix (macOS)
 
 ```bash
-git clone --recursive https://github.com/heiher/hev-socks5-tunnel
+git clone --recursive https://github.com/yujinpan/hev-socks5-tunnel
 cd hev-socks5-tunnel
 make
-```
-
-### Android
-
-```bash
-mkdir hev-socks5-tunnel
-cd hev-socks5-tunnel
-git clone --recursive https://github.com/heiher/hev-socks5-tunnel jni
-ndk-build
 ```
 
 ### iOS and macOS
 
 ```bash
-git clone --recursive https://github.com/heiher/hev-socks5-tunnel
+git clone --recursive https://github.com/yujinpan/hev-socks5-tunnel
 cd hev-socks5-tunnel
 # will generate HevSocks5Tunnel.xcframework
 ./build-apple.sh
 ```
 
-### Windows (MSYS2)
-```bash
-export MSYS=winsymlinks:native
-git clone --recursive https://github.com/heiher/hev-socks5-tunnel
-cd hev-socks5-tunnel
-make
-```
-
 ### Library
 
 ```bash
-git clone --recursive https://github.com/heiher/hev-socks5-tunnel
+git clone --recursive https://github.com/yujinpan/hev-socks5-tunnel
 cd hev-socks5-tunnel
 
 # Static library
@@ -82,215 +88,36 @@ make shared
 
 ## How to Use
 
-### Config
-
-```yaml
-tunnel:
-  # Interface name
-  name: tun0
-  # Interface MTU
-  mtu: 8500
-  # Multi-queue
-  multi-queue: false
-  # IPv4 address
-  ipv4: 198.18.0.1
-  # IPv6 address
-  ipv6: 'fc00::1'
-  # ICMP Echo mode (off|reply)
-  icmp: 'off'
-  # Post up script
-# post-up-script: up.sh
-  # Pre down script
-# pre-down-script: down.sh
-
-socks5:
-  # Socks5 server port
-  port: 1080
-  # Socks5 server address (ipv4/ipv6)
-  address: 127.0.0.1
-  # Socks5 UDP relay mode (tcp|udp)
-  udp: 'udp'
-  # Override the UDP address provided by the Socks5 server (ipv4/ipv6)
-# udp-address: ''
-  # Socks5 handshake using pipeline mode
-# pipeline: false
-  # Socks5 server username
-# username: 'username'
-  # Socks5 server password
-# password: 'password'
-  # Socket mark
-# mark: 0
-  # TCP fastopen
-# tcp-fastopen: false
-
-#mapdns:
-  # Mapped DNS address
-# address: 198.18.0.2
-  # Mapped DNS port
-# port: 53
-  # Mapped IP network base
-# network: 100.64.0.0
-  # Mapped IP network mask
-# netmask: 255.192.0.0
-  # Mapped DNS cache size
-# cache-size: 10000
-
-#misc:
-  # task stack size (bytes)
-# task-stack-size: 86016
-  # tcp buffer size (bytes)
-# tcp-buffer-size: 65536
-  # udp socket recv buffer (SO_RCVBUF) size (bytes)
-# udp-recv-buffer-size: 524288
-  # number of udp buffers in splice, 1500 bytes per buffer.
-# udp-copy-buffer-nums: 10
-  # maximum session count (0: unlimited)
-# max-session-count: 0
-  # connect timeout (ms)
-# connect-timeout: 10000
-  # TCP read-write timeout (ms)
-# tcp-read-write-timeout: 300000
-  # UDP read-write timeout (ms)
-# udp-read-write-timeout: 60000
-  # null, stdout, stderr or file-path
-# log-file: null
-  # debug, info, warn or error
-# log-level: warn
-  # If present, run as a daemon with this pid file
-# pid-file: /run/hev-socks5-tunnel.pid
-  # If present, set rlimit nofile; else use default value
-# limit-nofile: 65535
-```
-
-### Run
-
-#### Linux
-
-```bash
-# Set socks5.mark = 438
-bin/hev-socks5-tunnel conf/main.yml
-
-# Disable reverse path filter
-sudo sysctl -w net.ipv4.conf.all.rp_filter=0
-sudo sysctl -w net.ipv4.conf.tun0.rp_filter=0
-
-# Bypass upstream socks5 server
-sudo ip rule add fwmark 438 lookup main pref 10
-sudo ip -6 rule add fwmark 438 lookup main pref 10
-
-# Route others
-sudo ip route add default dev tun0 table 20
-sudo ip rule add lookup 20 pref 20
-sudo ip -6 route add default dev tun0 table 20
-sudo ip -6 rule add lookup 20 pref 20
-```
-
-#### FreeBSD/macOS
+### CLI
 
 ```zsh
-# Bypass upstream socks5 server
+# Defaults: socks 127.0.0.1:1080
+bin/hev-socks5-tunnel -s 127.0.0.1 -p 1080 -n utun -4 198.18.0.1 -m 8500
+```
+
+Bypass the upstream SOCKS server, then send the rest through the TUN:
+
+```zsh
 # 10.0.0.1: socks5 server
 # 10.0.2.2: default gateway
 sudo route add -net 10.0.0.1/32 10.0.2.2
-
-# Route others
-sudo route change -inet default -interface tun0
-sudo route change -inet6 default -interface tun0
+sudo route change -inet default -interface utunN
 ```
 
-#### Windows
-
-```zsh
-# Bypass upstream socks5 server
-# 10.0.0.1: socks5 server
-# 10.0.2.2: default gateway
-route add 10.0.0.1/32 10.0.2.2
-
-# Route others
-route change 0.0.0.0/0 0.0.0.0 if tun-index
-route change ::/0 :: if tun-index
-```
-
-#### OpenWrt 24.10+
-
-Repo: https://github.com/openwrt/packages/tree/master/net/hev-socks5-tunnel
-
-```sh
-# Install package
-opkg install hev-socks5-tunnel
-
-# Edit /etc/config/hev-socks5-tunnel
-
-# Restart service
-/etc/init.d/hev-socks5-tunnel restart
-```
-
-#### Low memory usage
+### Low memory usage
 
 On low-memory systems like iOS, reducing the size of the TCP buffer and
 task stack, as well as limiting the maximum session count, can help prevent
-out-of-memory issues.
+out-of-memory issues. Set the matching fields on `HevSocks5TunnelConfig`:
 
-```yaml
-misc:
-  # task stack size (bytes)
-  task-stack-size: 24576 # 20480 + tcp-buffer-size
-  # tcp buffer size (bytes)
-  tcp-buffer-size: 4096
-  # maximum session count
-  max-session-count: 1200
-```
-
-#### Docker Compose
-
-```yaml
-version: "3.9"
-
-services:
-  client:
-    image: alpine:latest # just for network testing
-    tty: true # you can test network in terminal
-    depends_on:
-      tun:
-        condition: service_healthy
-    network_mode: "service:tun"
-
-  tun:
-    image: ghcr.io/heiher/hev-socks5-tunnel:latest # `latest` for the latest published version; `nightly` for the latest source build; `vX.Y.Z` for the specific version 
-    cap_add:
-      - NET_ADMIN # needed
-    devices:
-      - /dev/net/tun:/dev/net/tun # needed
-    environment:
-      TUN: tun0 # optional, tun interface name, default `tun0`
-      MTU: 8500 # optional, MTU is MTU, default `8500`
-      IPV4: 198.18.0.1 # optional, tun interface ip, default `198.18.0.1`
-      IPV6: fc00::1 # optional, tun interface ip
-      ICMP: off # optional, ICMP Echo mode, default `off`, other option `reply`
-      TABLE: 20 # optional, ip route table id, default `20`
-      MARK: 438 # optional, ip route rule mark, dec or hex format, default `438`
-      SOCKS5_ADDR: a.b.c.d # socks5 proxy server address
-      SOCKS5_PORT: 1080 # socks5 proxy server port
-      SOCKS5_USERNAME: user # optional, socks5 proxy username, only set when need to auth
-      SOCKS5_PASSWORD: pass # optional, socks5 proxy password, only set when need to auth
-      SOCKS5_UDP_MODE: udp # optional, UDP relay mode, default `udp`, other option `tcp`
-      SOCKS5_UDP_ADDR: a.b.c.d # optional, override the UDP address provided by the Socks5 server
-      CONFIG_ROUTES: 1 # optional, set 0 to ignore TABLE, IPV4_INCLUDED_ROUTES and IPV4_EXCLUDED_ROUTES, with MARK defaults to 0
-      IPV4_INCLUDED_ROUTES: 0.0.0.0/0 # optional, demo means proxy all traffic. for multiple network segments, join with `,` or `\n`
-      IPV4_EXCLUDED_ROUTES: a.b.c.d # optional, demo means exclude traffic from the proxy itself. for multiple network segments, join with `,` or `\n`
-      LOG_LEVEL: warn # optional, default `warn`, other option `debug`/`info`/`error`
-    dns:
-      - 8.8.8.8
-```
-
-You can also set the route rules with multiple network segments like:
-
-```yaml
-    environment:
-      IPV4_INCLUDED_ROUTES: 10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
-      IPV4_EXCLUDED_ROUTES: |-
-        a.b.c.d/24
-        a.b.c.f/24
+```c
+HevSocks5TunnelConfig config = {
+    .socks5_address = "127.0.0.1",
+    .socks5_port = 1080,
+    .task_stack_size = 24576, /* 20480 + tcp_buffer_size */
+    .tcp_buffer_size = 4096,
+    .max_session_count = 1200,
+};
 ```
 
 ## API
@@ -299,116 +126,61 @@ You can also set the route rules with multiple network segments like:
 
 ```c
 /**
+ * HevSocks5TunnelConfig:
+ *
+ * Zero-initialized fields use built-in defaults. socks5_address and
+ * socks5_port are required.
+ */
+typedef struct _HevSocks5TunnelConfig {
+    const char *socks5_address;
+    unsigned short socks5_port;
+    const char *socks5_udp_address;
+
+    const char *tunnel_name;
+    unsigned int tunnel_mtu;
+    const char *tunnel_ipv4;
+
+    int task_stack_size;
+    int tcp_buffer_size;
+    int udp_recv_buffer_size;
+    int udp_copy_buffer_nums;
+    int max_session_count;
+    int connect_timeout;
+    int tcp_read_write_timeout;
+    int udp_read_write_timeout;
+    const char *log_file;
+    const char *log_level;
+} HevSocks5TunnelConfig;
+
+/**
  * hev_socks5_tunnel_main:
- * @config_path: config file path
- * @tun_fd: tunnel file descriptor
+ * @config: tunnel configuration
+ * @tun_fd: tunnel file descriptor, or -1 to create one
  *
- * Start and run the socks5 tunnel, this function will blocks until the
- * hev_socks5_tunnel_quit is called or an error occurs.
+ * Start and run the socks5 tunnel. Blocks until hev_socks5_tunnel_quit
+ * is called or an error occurs.
  *
- * Alias of hev_socks5_tunnel_main_from_file
- *
- * Returns: returns zero on successful, otherwise returns -1.
- *
- * Since: 2.4.6
+ * Returns: zero on success, otherwise -1.
  */
-int hev_socks5_tunnel_main (const char *config_path, int tun_fd);
-
-/**
- * hev_socks5_tunnel_main_from_file:
- * @config_path: config file path
- * @tun_fd: tunnel file descriptor
- *
- * Start and run the socks5 tunnel, this function will blocks until the
- * hev_socks5_tunnel_quit is called or an error occurs.
- *
- * Returns: returns zero on successful, otherwise returns -1.
- *
- * Since: 2.6.7
- */
-int hev_socks5_tunnel_main_from_file (const char *config_path, int tun_fd);
-
-/**
- * hev_socks5_tunnel_main_from_str:
- * @config_str: string config
- * @config_len: the byte length of string config
- * @tun_fd: tunnel file descriptor
- *
- * Start and run the socks5 tunnel, this function will blocks until the
- * hev_socks5_tunnel_quit is called or an error occurs.
- *
- * Returns: returns zero on successful, otherwise returns -1.
- *
- * Since: 2.6.7
- */
-int hev_socks5_tunnel_main_from_str (const unsigned char *config_str,
-                                     unsigned int config_len, int tun_fd);
+int hev_socks5_tunnel_main (const HevSocks5TunnelConfig *config, int tun_fd);
 
 /**
  * hev_socks5_tunnel_quit:
  *
  * Stop the socks5 tunnel.
- *
- * Since: 2.4.6
  */
 void hev_socks5_tunnel_quit (void);
 
 /**
  * hev_socks5_tunnel_stats:
- * @tx_packets (out): transmitted packets
- * @tx_bytes (out): transmitted bytes
- * @rx_packets (out): received packets
- * @rx_bytes (out): received bytes
  *
  * Retrieve tunnel interface traffic statistics.
- *
- * Since: 2.6.5
  */
 void hev_socks5_tunnel_stats (size_t *tx_packets, size_t *tx_bytes,
                               size_t *rx_packets, size_t *rx_bytes);
 ```
 
-### Java
-
-```java
-public class TProxyService {
-    private static native boolean TProxyStartService(String config_path, int fd);
-    private static native boolean TProxyStopService();
-    private static native boolean TProxyIsRunning();
-    private static native long[] TProxyGetStats();
-
-    static {
-        System.loadLibrary("hev-socks5-tunnel");
-    }
-}
-```
-
-### Kotlin
-```kt
-object TProxyService {
-    private external fun TProxyStartService(config_path: String, fd: Int): Boolean
-    private external fun TProxyStopService(): Boolean
-    private external fun TProxyIsRunning(): Boolean
-    private external fun TProxyGetStats(): LongArray
-
-    init {
-        System.loadLibrary("hev-socks5-tunnel")
-    }
-}
-```
-
-Allow overriding the package and class names in `Application.mk`[^2].
-
-```makefile
-APP_CFLAGS := -DPKGNAME=hev/sockstun -DCLSNAME=TProxyService
-```
-
 ## Use Cases
-
-### Android VPN
-
-* [SocksTun](https://github.com/heiher/sockstun)
-* [Orbot](https://github.com/guardianproject/orbot-android)
 
 ### iOS
 
@@ -438,6 +210,3 @@ APP_CFLAGS := -DPKGNAME=hev/sockstun -DCLSNAME=TProxyService
 ## License
 
 MIT
-
-[^1]: See [protocol specification](https://github.com/heiher/hev-socks5-core/tree/main?tab=readme-ov-file#udp-in-tcp). The [hev-socks5-server](https://github.com/heiher/hev-socks5-server) supports UDP relay over TCP.
-[^2]: See [Application.mk](https://github.com/heiher/sockstun/blob/12830d444fe60ad1c5d68ea6e60ec141cd2c6d97/app/src/main/jni/Application.mk#L19)

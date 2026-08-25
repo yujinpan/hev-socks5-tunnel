@@ -16,10 +16,8 @@
 
 #include <lwip/tcp.h>
 #include <lwip/udp.h>
-#include <lwip/nd6.h>
 #include <lwip/netif.h>
 #include <lwip/ip4_frag.h>
-#include <lwip/ip6_frag.h>
 #include <lwip/priv/tcp_priv.h>
 
 #include <hev-task.h>
@@ -28,13 +26,10 @@
 #include <hev-task-system.h>
 #include <hev-memory-allocator.h>
 
-#include "hev-exec.h"
 #include "hev-config.h"
 #include "hev-logger.h"
 #include "hev-tunnel.h"
 #include "hev-compiler.h"
-#include "hev-mapped-dns.h"
-#include "hev-config-const.h"
 #include "hev-socks5-session-tcp.h"
 #include "hev-socks5-session-udp.h"
 
@@ -106,17 +101,9 @@ netif_output_v4_handler (struct netif *netif, struct pbuf *p,
 }
 
 static err_t
-netif_output_v6_handler (struct netif *netif, struct pbuf *p,
-                         const ip6_addr_t *ipaddr)
-{
-    return netif_output_handler (netif, p);
-}
-
-static err_t
 netif_init_handler (struct netif *netif)
 {
     netif->output = netif_output_v4_handler;
-    netif->output_ip6 = netif_output_v6_handler;
 
     return ERR_OK;
 }
@@ -205,58 +192,17 @@ tcp_accept_handler (void *arg, struct tcp_pcb *pcb, err_t err)
 }
 
 static void
-dns_recv_handler (void *arg, struct udp_pcb *pcb, struct pbuf *p,
-                  const ip_addr_t *addr, u16_t port)
-{
-    HevMappedDNS *dns = arg;
-    struct pbuf *b;
-    int res;
-
-    LOG_D ("%p mapped dns handle", dns);
-
-    b = pbuf_alloc (PBUF_TRANSPORT, UDP_BUF_SIZE, PBUF_RAM);
-    if (!b)
-        goto exit;
-
-    res = hev_mapped_dns_handle (dns, p->payload, p->len, b->payload, b->len);
-    if (res < 0)
-        goto free;
-
-    b->len = res;
-    b->tot_len = res;
-    udp_sendfrom (pcb, b, &pcb->local_ip, pcb->local_port);
-
-free:
-    pbuf_free (b);
-exit:
-    pbuf_free (p);
-    udp_recv (pcb, NULL, NULL);
-    udp_remove (pcb);
-}
-
-static void
 udp_recv_handler (void *arg, struct udp_pcb *pcb, struct pbuf *p,
                   const ip_addr_t *addr, u16_t port)
 {
     HevSocks5SessionUDP *udp;
     HevListNode *node;
-    HevMappedDNS *dns;
     int stack_size;
     HevTask *task;
 
     if (!READ_ONCE (run)) {
         udp_remove (pcb);
         return;
-    }
-
-    dns = hev_mapped_dns_get ();
-    if (dns && addr->type == IPADDR_TYPE_V4) {
-        int faddr = hev_config_get_mapdns_address ();
-        int fport = hev_config_get_mapdns_port ();
-        if (fport == port && faddr == ip_2_ip4 (addr)->addr) {
-            udp_recv (pcb, dns_recv_handler, dns);
-            return;
-        }
     }
 
     udp = hev_socks5_session_udp_new (pcb, &mutex);
@@ -350,12 +296,6 @@ lwip_timer_task_entry (void *data)
 #if IP_REASSEMBLY
             ip_reass_tmr ();
 #endif
-#if LWIP_IPV6
-            nd6_tmr ();
-#if LWIP_IPV6_REASS
-            ip6_reass_tmr ();
-#endif
-#endif
         }
         hev_task_mutex_unlock (&mutex);
 
@@ -369,9 +309,9 @@ lwip_timer_task_entry (void *data)
 static int
 tunnel_init (int extern_tun_fd)
 {
-    const char *script_path, *name, *ipv4, *ipv6;
-    int multi_queue, res;
+    const char *name, *ipv4;
     unsigned int mtu;
+    int res;
 
     if (extern_tun_fd >= 0) {
         int nonblock = 1;
@@ -388,8 +328,7 @@ tunnel_init (int extern_tun_fd)
 
     tun_fd_local = 1;
     name = hev_config_get_tunnel_name ();
-    multi_queue = hev_config_get_tunnel_multi_queue ();
-    tun_fd = hev_tunnel_open (name, multi_queue);
+    tun_fd = hev_tunnel_open (name);
     if (tun_fd < 0) {
         LOG_E ("socks5 tunnel open (%s)", strerror (errno));
         return -1;
@@ -411,25 +350,11 @@ tunnel_init (int extern_tun_fd)
         }
     }
 
-    ipv6 = hev_config_get_tunnel_ipv6_address ();
-    if (ipv6) {
-        res = hev_tunnel_set_ipv6 (ipv6, 128);
-        if (res < 0) {
-            LOG_E ("socks5 tunnel ipv6");
-            return -1;
-        }
-    }
-
     res = hev_tunnel_set_state (1);
     if (res < 0) {
         LOG_E ("socks5 tunnel state");
         return -1;
     }
-
-    script_path = hev_config_get_tunnel_post_up_script ();
-    if (script_path)
-        hev_exec_run (script_path, hev_tunnel_get_name (),
-                      hev_tunnel_get_index (), 0);
 
     return 0;
 }
@@ -437,15 +362,8 @@ tunnel_init (int extern_tun_fd)
 static void
 tunnel_fini (void)
 {
-    const char *script_path;
-
     if (!tun_fd_local)
         return;
-
-    script_path = hev_config_get_tunnel_pre_down_script ();
-    if (script_path)
-        hev_exec_run (script_path, hev_tunnel_get_name (),
-                      hev_tunnel_get_index (), 1);
 
     if (tun_fd >= 0) {
         hev_tunnel_close (tun_fd);
@@ -459,7 +377,6 @@ gateway_init (void)
 {
     static struct netif _netif;
     ip4_addr_t addr4, mask, gw;
-    ip6_addr_t addr6;
 
     netif = netif_add_noaddr (&_netif, NULL, netif_init_handler, ip_input);
     if (!netif) {
@@ -472,19 +389,13 @@ gateway_init (void)
     ip4_addr_set_any (&gw);
     netif_set_addr (netif, &addr4, &mask, &gw);
 
-    ip6_addr_set_loopback (&addr6);
-    netif_add_ip6_address (netif, &addr6, NULL);
-
     netif_set_up (netif);
     netif_set_link_up (netif);
     netif_set_default (netif);
     netif_set_flags (netif, NETIF_FLAG_PRETEND_TCP);
     netif_set_flags (netif, NETIF_FLAG_PRETEND_UDP);
 
-    if (hev_config_get_tunnel_icmp ())
-        netif_set_flags (netif, NETIF_FLAG_PRETEND_ICMP);
-
-    tcp = tcp_new_ip_type (IPADDR_TYPE_ANY);
+    tcp = tcp_new_ip_type (IPADDR_TYPE_V4);
     if (!tcp) {
         LOG_E ("socks5 tunnel tcp");
         return -1;
@@ -495,7 +406,7 @@ gateway_init (void)
     tcp = tcp_listen (tcp);
     tcp_accept (tcp, tcp_accept_handler);
 
-    udp = udp_new_ip_type (IPADDR_TYPE_ANY);
+    udp = udp_new_ip_type (IPADDR_TYPE_V4);
     if (!udp) {
         LOG_E ("socks5 tunnel udp");
         return -1;
@@ -614,42 +525,6 @@ lwip_timer_task_fini (void)
     }
 }
 
-static int
-mapped_dns_init (void)
-{
-    HevMappedDNS *dns;
-    int cache_size;
-    int network;
-    int netmask;
-
-    network = hev_config_get_mapdns_network ();
-    netmask = hev_config_get_mapdns_netmask ();
-    cache_size = hev_config_get_mapdns_cache_size ();
-
-    if (!cache_size)
-        return 0;
-
-    dns = hev_mapped_dns_new (network, netmask, cache_size);
-    if (!dns)
-        return -1;
-
-    hev_mapped_dns_put (dns);
-
-    return 0;
-}
-
-static void
-mapped_dns_fini (void)
-{
-    HevMappedDNS *dns;
-
-    dns = hev_mapped_dns_get ();
-    if (dns) {
-        hev_object_unref (HEV_OBJECT (dns));
-        hev_mapped_dns_put (NULL);
-    }
-}
-
 int
 hev_socks5_tunnel_init (int tun_fd)
 {
@@ -677,10 +552,6 @@ hev_socks5_tunnel_init (int tun_fd)
     if (res < 0)
         goto exit;
 
-    res = mapped_dns_init ();
-    if (res < 0)
-        goto exit;
-
     signal (SIGPIPE, SIG_IGN);
 
     hev_task_mutex_init (&mutex);
@@ -705,7 +576,6 @@ retry:
         goto retry;
     }
 
-    mapped_dns_fini ();
     lwip_timer_task_fini ();
     lwip_io_task_fini ();
     event_task_fini ();

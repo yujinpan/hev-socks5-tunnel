@@ -23,7 +23,6 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
-#include <netinet6/nd6.h>
 #include <net/if_utun.h>
 #include <sys/sys_domain.h>
 #include <sys/kern_control.h>
@@ -37,7 +36,7 @@
 static char tun_name[IFNAMSIZ];
 
 int
-hev_tunnel_open (const char *name, int multi_queue)
+hev_tunnel_open (const char *name)
 {
 #if TARGET_OS_OSX
     socklen_t len = IFNAMSIZ;
@@ -174,49 +173,6 @@ hev_tunnel_set_ipv4 (const char *addr, unsigned int prefix)
     pa->sin_addr.s_addr = htonl (((unsigned int)(-1)) << (32 - prefix));
 
     res = ioctl (fd, SIOCAIFADDR, &ifra);
-
-exit_close:
-    close (fd);
-exit:
-    return res;
-#else
-    return 0;
-#endif
-}
-
-int
-hev_tunnel_set_ipv6 (const char *addr, unsigned int prefix)
-{
-#if TARGET_OS_OSX
-    struct in6_aliasreq ifra = { .ifra_lifetime = { 0, 0, ND6_INFINITE_LIFETIME,
-                                                    ND6_INFINITE_LIFETIME } };
-    uint8_t *bytes;
-    int res = -1;
-    int fd;
-    int i;
-
-    fd = socket (AF_INET6, SOCK_DGRAM, 0);
-    if (fd < 0)
-        goto exit;
-
-    strcpy (ifra.ifra_name, tun_name);
-
-    ifra.ifra_addr.sin6_len = sizeof (ifra.ifra_addr);
-    ifra.ifra_addr.sin6_family = AF_INET6;
-    res = inet_pton (AF_INET6, addr, &ifra.ifra_addr.sin6_addr);
-    if (!res)
-        goto exit_close;
-
-    ifra.ifra_prefixmask.sin6_len = sizeof (ifra.ifra_prefixmask);
-    ifra.ifra_prefixmask.sin6_family = AF_INET6;
-    bytes = (uint8_t *)&ifra.ifra_prefixmask.sin6_addr;
-    memset (bytes, 0xFF, 16);
-    bytes[prefix / 8] <<= prefix % 8;
-    prefix += prefix % 8;
-    for (i = prefix / 8; i < 16; i++)
-        bytes[i] = 0;
-
-    res = ioctl (fd, SIOCAIFADDR_IN6, &ifra);
 
 exit_close:
     close (fd);

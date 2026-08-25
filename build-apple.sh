@@ -3,18 +3,26 @@
 set -e
 
 XCFRAMEWORK_DIR="./apple_xcframework"
-LIB_NAME="HevSocks5Tunnel"
+OUTPUT_NAME="HevSocks5Tunnel-2.17.1-no-handshake-no-mapdns.xcframework"
 
-# buildStatic iphoneos -mios-version-min=15.0 arm64
+# buildStatic iphoneos arm64 15.0
 buildStatic()
 {
      echo "build for $1, $2, min version $3"
 
+     # Object files are not rebuilt when only CC/CFLAGS change, so drop the
+     # previous architecture (and any host `make static` leftovers) first.
+     make clean
+
      local MIN_VERSION="-m$1-version-min=$3"
-     make PP="xcrun --sdk $1 --toolchain $1 clang" \
-          CC="xcrun --sdk $1 --toolchain $1 clang" \
-          CFLAGS="-arch $2 $MIN_VERSION" \
-          LFLAGS="-arch $2 $MIN_VERSION -Wl,-Bsymbolic-functions" static
+     local SDKROOT_PATH
+     SDKROOT_PATH="$(xcrun --sdk "$1" --show-sdk-path)"
+     make PP="xcrun --sdk $1 clang" \
+          CC="xcrun --sdk $1 clang" \
+          CFLAGS="-arch $2 $MIN_VERSION -isysroot ${SDKROOT_PATH}" \
+          LFLAGS="-arch $2 $MIN_VERSION -isysroot ${SDKROOT_PATH} -Wl,-Bsymbolic-functions" \
+          SDKROOT="${SDKROOT_PATH}" \
+          static
 
      local OUTPUT_DIR="$XCFRAMEWORK_DIR/$1-$2"
      mkdir -p $OUTPUT_DIR
@@ -23,9 +31,7 @@ buildStatic()
      libtool -static -o $OUTPUT_ARCH_FILE \
                    bin/libhev-socks5-tunnel.a \
                    third-part/lwip/bin/liblwip.a \
-                   third-part/yaml/bin/libyaml.a \
                    third-part/hev-task-system/bin/libhev-task-system.a
-     make clean
 }
 
 mergeStatic()
@@ -43,7 +49,7 @@ mergeStatic()
 }
 
 rm -rf $XCFRAMEWORK_DIR
-rm -rf HevSocks5Tunnel.xcframework
+rm -rf "$OUTPUT_NAME" HevSocks5Tunnel.xcframework
 mkdir $XCFRAMEWORK_DIR
 
 buildStatic iphoneos arm64 15.0
@@ -56,21 +62,14 @@ buildStatic macosx x86_64 10.14
 buildStatic macosx arm64 10.14
 mergeStatic macosx x86_64 arm64
 
-buildStatic appletvos arm64 17.0
-buildStatic appletvsimulator x86_64 17.0
-buildStatic appletvsimulator arm64 17.0
-mergeStatic appletvsimulator x86_64 arm64
-
 INCLUDE_DIR="$XCFRAMEWORK_DIR/include"
-mkdir -p $INCLUDE_DIR/$LIB_NAME
-cp ./src/hev-main.h $INCLUDE_DIR/$LIB_NAME
-cp ./module.modulemap $INCLUDE_DIR/$LIB_NAME
+mkdir -p $INCLUDE_DIR
+cp ./src/hev-main.h $INCLUDE_DIR
+cp ./module.modulemap $INCLUDE_DIR
 xcodebuild -create-xcframework \
     -library ./apple_xcframework/iphoneos-arm64/libhev-socks5-tunnel.a -headers $INCLUDE_DIR \
     -library ./apple_xcframework/iphonesimulator-x86_64-arm64/libhev-socks5-tunnel.a -headers $INCLUDE_DIR \
     -library ./apple_xcframework/macosx-x86_64-arm64/libhev-socks5-tunnel.a -headers $INCLUDE_DIR \
-    -library ./apple_xcframework/appletvos-arm64/libhev-socks5-tunnel.a -headers $INCLUDE_DIR \
-    -library ./apple_xcframework/appletvsimulator-x86_64-arm64/libhev-socks5-tunnel.a -headers $INCLUDE_DIR \
-    -output ./HevSocks5Tunnel.xcframework
+    -output "./$OUTPUT_NAME"
 
 rm -rf ./apple_xcframework
