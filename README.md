@@ -11,6 +11,7 @@ SOCKS server.
 
 - [x] Vendor `src/core` in-tree (no longer a submodule)
 - [x] Vendor `third-part/lwip` in-tree (no longer a submodule; IPv4-only `LWIP_IPV6=0`)
+- [x] Vendor `third-part/hev-task-system` in-tree (no longer a submodule)
 - [x] Skip SOCKS5 authentication handshake (method / username-password). CONNECT and UDP ASSOCIATE are still sent
 - [x] Remove MapDNS (fake IP / mapped DNS cache)
 - [x] Remove local ICMP Echo (ping) replies (`icmp: reply` / `NETIF_FLAG_PRETEND_ICMP`)
@@ -59,7 +60,7 @@ See [here](https://github.com/heiher/hev-socks5-tunnel/wiki/Benchmarks) for more
 ### Unix (macOS)
 
 ```bash
-git clone --recursive https://github.com/yujinpan/hev-socks5-tunnel
+git clone https://github.com/yujinpan/hev-socks5-tunnel
 cd hev-socks5-tunnel
 make
 ```
@@ -67,7 +68,7 @@ make
 ### iOS and macOS
 
 ```bash
-git clone --recursive https://github.com/yujinpan/hev-socks5-tunnel
+git clone https://github.com/yujinpan/hev-socks5-tunnel
 cd hev-socks5-tunnel
 # will generate HevSocks5Tunnel.xcframework
 ./build-apple.sh
@@ -76,7 +77,7 @@ cd hev-socks5-tunnel
 ### Library
 
 ```bash
-git clone --recursive https://github.com/yujinpan/hev-socks5-tunnel
+git clone https://github.com/yujinpan/hev-socks5-tunnel
 cd hev-socks5-tunnel
 
 # Static library
