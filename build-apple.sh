@@ -15,6 +15,10 @@ buildStatic()
      make clean
 
      local MIN_VERSION="-m$1-version-min=$3"
+     case "$1" in
+       appletvos) MIN_VERSION="-target $2-apple-tvos$3" ;;
+       appletvsimulator) MIN_VERSION="-target $2-apple-tvos$3-simulator" ;;
+     esac
      local SDKROOT_PATH
      SDKROOT_PATH="$(xcrun --sdk "$1" --show-sdk-path)"
      make PP="xcrun --sdk $1 clang" \
@@ -57,6 +61,11 @@ buildStatic iphonesimulator x86_64 15.0
 buildStatic iphonesimulator arm64 15.0
 mergeStatic iphonesimulator x86_64 arm64
 
+buildStatic appletvos arm64 17.0
+buildStatic appletvsimulator arm64 17.0
+buildStatic appletvsimulator x86_64 17.0
+mergeStatic appletvsimulator x86_64 arm64
+
 # keep same with flutter
 buildStatic macosx x86_64 10.14
 buildStatic macosx arm64 10.14
@@ -70,6 +79,8 @@ xcodebuild -create-xcframework \
     -library ./apple_xcframework/iphoneos-arm64/libhev-socks5-tunnel.a -headers $INCLUDE_DIR \
     -library ./apple_xcframework/iphonesimulator-x86_64-arm64/libhev-socks5-tunnel.a -headers $INCLUDE_DIR \
     -library ./apple_xcframework/macosx-x86_64-arm64/libhev-socks5-tunnel.a -headers $INCLUDE_DIR \
+    -library ./apple_xcframework/appletvos-arm64/libhev-socks5-tunnel.a -headers $INCLUDE_DIR \
+    -library ./apple_xcframework/appletvsimulator-x86_64-arm64/libhev-socks5-tunnel.a -headers $INCLUDE_DIR \
     -output "./$OUTPUT_NAME"
 
 rm -rf ./apple_xcframework
