@@ -79,19 +79,16 @@ hev_config_init (const HevSocks5TunnelConfig *config)
     max_session_count = config->max_session_count;
     task_stack_size = config->task_stack_size ? config->task_stack_size : 86016;
     tcp_buffer_size = config->tcp_buffer_size ? config->tcp_buffer_size : 65536;
-    udp_recv_buffer_size = config->udp_recv_buffer_size ?
-                               config->udp_recv_buffer_size :
-                               524288;
-    udp_copy_buffer_nums = config->udp_copy_buffer_nums ?
-                               config->udp_copy_buffer_nums :
-                               10;
+    udp_recv_buffer_size =
+        config->udp_recv_buffer_size ? config->udp_recv_buffer_size : 524288;
+    udp_copy_buffer_nums =
+        config->udp_copy_buffer_nums ? config->udp_copy_buffer_nums : 10;
     connect_timeout = config->connect_timeout ? config->connect_timeout : 10000;
     tcp_read_write_timeout = config->tcp_read_write_timeout ?
                                  config->tcp_read_write_timeout :
                                  300000;
-    udp_read_write_timeout = config->udp_read_write_timeout ?
-                                 config->udp_read_write_timeout :
-                                 60000;
+    udp_read_write_timeout =
+        config->udp_read_write_timeout ? config->udp_read_write_timeout : 60000;
     log_level = parse_log_level (config->log_level);
     if (config->log_file)
         strncpy (log_file, config->log_file, sizeof (log_file) - 1);

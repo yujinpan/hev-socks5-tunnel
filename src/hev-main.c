@@ -99,8 +99,7 @@ hev_socks5_tunnel_quit (void)
 static void
 show_help (const char *self_path)
 {
-    printf ("%s [-s ADDR] [-p PORT] [-n NAME] [-4 IPV4] [-m MTU]\n",
-            self_path);
+    printf ("%s [-s ADDR] [-p PORT] [-n NAME] [-4 IPV4] [-m MTU]\n", self_path);
     printf ("Version: %u.%u.%u %s\n", MAJOR_VERSION, MINOR_VERSION,
             MICRO_VERSION, COMMIT_ID);
 }

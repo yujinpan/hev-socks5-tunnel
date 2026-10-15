@@ -25,7 +25,7 @@ SOCKS server.
 - [x] Remove UDP-in-TCP (`udp: tcp` / FWD UDP); UDP uses UDP ASSOCIATE only
 - [x] Disable IPv6 (`LWIP_IPV6`) if the split path is IPv4-only
 - [x] Drop YAML parser if config is a struct / hardcoded instead of `hev_socks5_tunnel_main_from_str`
-- [x] Drop tvOS slices in `build-apple.sh`
+- [x] Build iOS, macOS and tvOS device/simulator slices in `build-apple.sh`
 
 Do not remove: TCP/UDP forwarding, session / lwIP TCP+UDP, `misc` buffer and session limits, `hev-tunnel-macos.c`, lwIP internal ICMP/ICMPv6 (NDP, dest-unreach).
 
@@ -34,7 +34,7 @@ Do not remove: TCP/UDP forwarding, session / lwIP TCP+UDP, `misc` buffer and ses
 * IPv4 TUN.
 * Redirect TCP connections.
 * Redirect UDP packets. (Fullcone NAT, UDP ASSOCIATE)
-* macOS / iOS.
+* macOS / iOS / tvOS (tvOS 17 or later).
 
 ## Benchmarks
 
@@ -65,12 +65,12 @@ cd hev-socks5-tunnel
 make
 ```
 
-### iOS and macOS
+### iOS, macOS and tvOS
 
 ```bash
 git clone https://github.com/yujinpan/hev-socks5-tunnel
 cd hev-socks5-tunnel
-# will generate HevSocks5Tunnel.xcframework
+# will generate HevSocks5Tunnel-2.17.1-no-handshake-no-mapdns.xcframework
 ./build-apple.sh
 ```
 
