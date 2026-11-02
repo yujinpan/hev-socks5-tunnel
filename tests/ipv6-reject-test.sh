@@ -1,6 +1,7 @@
 #!/bin/sh
-# Builds and runs the IPv6 reject tests on the host with sanitizers, then has
-# tcpdump verify the TCP / ICMPv6 checksums of every generated reply.
+# Builds and runs the IPv6 reject tests on the host with sanitizers, has
+# tcpdump verify the TCP / ICMPv6 checksums of every generated reply, and runs
+# the socketpair integration test when the XCFramework has been built.
 
 set -eu
 cd "$(dirname "$0")/.."
@@ -23,4 +24,16 @@ if command -v tcpdump >/dev/null 2>&1; then
         exit 1
     fi
     echo "tcpdump: $correct of $replies checksums correct"
+fi
+
+# After ./build-apple.sh: drive the real tunnel loop of the macOS slice over a
+# datagram socketpair standing in for utun.
+slice=HevSocks5Tunnel-2.17.1-no-handshake-no-mapdns.xcframework/macos-arm64_x86_64
+if [ -f "$slice/libhev-socks5-tunnel.a" ]; then
+    cc -std=c11 -Wall -Wextra -Werror -I"$slice/Headers" \
+       tests/ipv6-reject-integration.c "$slice/libhev-socks5-tunnel.a" \
+       -lpthread -o "$out/integration" 2>&1 | grep -v 'reducing alignment' || true
+    "$out/integration"
+else
+    echo "skip integration: run ./build-apple.sh first"
 fi
