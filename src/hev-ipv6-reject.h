@@ -44,15 +44,13 @@ struct _HevIPv6RejectLimiter
 size_t hev_ipv6_reject_build (const uint8_t *packet, size_t len,
                               uint8_t *reply);
 
-void hev_ipv6_reject_limiter_init (HevIPv6RejectLimiter *self,
-                                   uint64_t now_ms);
+void hev_ipv6_reject_limiter_init (HevIPv6RejectLimiter *self, uint64_t now_ms);
 
 /**
  * hev_ipv6_reject_limiter_take:
  *
  * Returns: non-zero when a reply may be sent at @now_ms.
  */
-int hev_ipv6_reject_limiter_take (HevIPv6RejectLimiter *self,
-                                  uint64_t now_ms);
+int hev_ipv6_reject_limiter_take (HevIPv6RejectLimiter *self, uint64_t now_ms);
 
 #endif /* __HEV_IPV6_REJECT_H__ */
