@@ -91,8 +91,7 @@ sum_words (uint32_t sum, const uint8_t *p, size_t len)
 /* Fills the upper-layer checksum at @reply + 40 + @offset over the IPv6
  * pseudo-header (RFC 8200 8.1); the field must be zero on entry. */
 static void
-fill_checksum (uint8_t *reply, size_t upper_len, uint8_t next,
-               size_t offset)
+fill_checksum (uint8_t *reply, size_t upper_len, uint8_t next, size_t offset)
 {
     uint32_t sum;
 
@@ -217,8 +216,7 @@ hev_ipv6_reject_build (const uint8_t *packet, size_t len, uint8_t *reply)
 
     switch (next) {
     case NEXT_TCP:
-        return build_tcp_reset (packet, packet + offset, len - offset,
-                                reply);
+        return build_tcp_reset (packet, packet + offset, len - offset, reply);
     case NEXT_UDP:
         if (len - offset < 8)
             return 0;
@@ -227,16 +225,14 @@ hev_ipv6_reject_build (const uint8_t *packet, size_t len, uint8_t *reply)
         /* Never answer errors (RFC 4443 2.4 e) or neighbor discovery. */
         if (len - offset < 8 || packet[offset] != ICMPV6_ECHO_REQUEST)
             return 0;
-        return build_icmpv6_error (packet, len, ICMPV6_ADMIN_PROHIBITED,
-                                   reply);
+        return build_icmpv6_error (packet, len, ICMPV6_ADMIN_PROHIBITED, reply);
     case NEXT_FRAGMENT:
     case NEXT_HOP_BY_HOP:
     case NEXT_ROUTING:
     case NEXT_DEST_OPTS:
         return 0;
     default:
-        return build_icmpv6_error (packet, len, ICMPV6_ADMIN_PROHIBITED,
-                                   reply);
+        return build_icmpv6_error (packet, len, ICMPV6_ADMIN_PROHIBITED, reply);
     }
 }
 

@@ -283,8 +283,7 @@ ipv6_reject (const struct pbuf *buf)
     len = hev_ipv6_reject_build (buf->payload, buf->len, ipv6_reply);
     if (len && hev_ipv6_reject_limiter_take (&ipv6_limiter, monotonic_ms ()) &&
         hev_tunnel_write_ipv6 (tun_fd, ipv6_reply, len) > 0) {
-        atomic_fetch_add_explicit (&stat_ipv6_replied, 1,
-                                   memory_order_relaxed);
+        atomic_fetch_add_explicit (&stat_ipv6_replied, 1, memory_order_relaxed);
         return;
     }
 
@@ -709,10 +708,10 @@ void
 hev_socks5_tunnel_ipv6_stats (size_t *replied, size_t *dropped)
 {
     if (replied)
-        *replied = atomic_load_explicit (&stat_ipv6_replied,
-                                         memory_order_relaxed);
+        *replied =
+            atomic_load_explicit (&stat_ipv6_replied, memory_order_relaxed);
 
     if (dropped)
-        *dropped = atomic_load_explicit (&stat_ipv6_dropped,
-                                         memory_order_relaxed);
+        *dropped =
+            atomic_load_explicit (&stat_ipv6_dropped, memory_order_relaxed);
 }
