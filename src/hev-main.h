@@ -73,6 +73,19 @@ void hev_socks5_tunnel_quit (void);
 void hev_socks5_tunnel_stats (size_t *tx_packets, size_t *tx_bytes,
                               size_t *rx_packets, size_t *rx_bytes);
 
+/**
+ * hev_socks5_tunnel_ipv6_stats:
+ * @replied: IPv6 packets answered with a TCP RST or an ICMPv6 error
+ * @dropped: IPv6 packets dropped silently (not answerable, rate limited, or
+ *           the reply could not be written)
+ *
+ * Retrieve how the latest run handled IPv6 packets. The tunnel is IPv4-only,
+ * so every IPv6 packet read from it is either answered or dropped. Counters
+ * reset when a run starts and stay readable after hev_socks5_tunnel_main
+ * returns.
+ */
+void hev_socks5_tunnel_ipv6_stats (size_t *replied, size_t *dropped);
+
 #ifdef __cplusplus
 }
 #endif

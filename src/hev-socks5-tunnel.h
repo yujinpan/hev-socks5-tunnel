@@ -20,6 +20,7 @@ void hev_socks5_tunnel_stop (void);
 
 void hev_socks5_tunnel_stats (size_t *tx_packets, size_t *tx_bytes,
                               size_t *rx_packets, size_t *rx_bytes);
+void hev_socks5_tunnel_ipv6_stats (size_t *replied, size_t *dropped);
 
 void hev_socks5_tunnel_update_session (HevListNode *node);
 

@@ -66,4 +66,23 @@ hev_tunnel_write (int fd, struct pbuf *buf)
     return res;
 }
 
+static inline ssize_t
+hev_tunnel_write_ipv6 (int fd, const void *data, size_t len)
+{
+    struct iovec iov[2];
+    uint32_t type = htonl (AF_INET6);
+    ssize_t res;
+
+    iov[0].iov_base = &type;
+    iov[0].iov_len = sizeof (type);
+    iov[1].iov_base = (void *)data;
+    iov[1].iov_len = len;
+
+    res = writev (fd, iov, 2);
+    if (res <= (ssize_t)sizeof (type))
+        return -1;
+
+    return res;
+}
+
 #endif /* __HEV_TUNNEL_MACOS_H__ */

@@ -24,6 +24,7 @@ SOCKS server.
 - [x] Remove JNI, Windows/Linux/FreeBSD/NetBSD tun backends, wintun
 - [x] Remove UDP-in-TCP (`udp: tcp` / FWD UDP); UDP uses UDP ASSOCIATE only
 - [x] Disable IPv6 (`LWIP_IPV6`) if the split path is IPv4-only
+- [x] Fail IPv6 fast instead of dropping it silently: before lwIP, an IPv6 packet read from the TUN gets a TCP RST (TCP), ICMPv6 port unreachable (UDP) or ICMPv6 administratively prohibited (echo request and other upper layers), at most 100 replies/s. RST, ICMPv6 other than echo request, fragments, multicast / link-local / loopback / unspecified addresses and malformed packets are dropped silently. `hev_socks5_tunnel_ipv6_stats` reports replied / dropped counts of the latest run; `tests/ipv6-reject-test.sh` runs the packet builder tests
 - [x] Drop YAML parser if config is a struct / hardcoded instead of `hev_socks5_tunnel_main_from_str`
 - [x] Build iOS, macOS and tvOS device/simulator slices in `build-apple.sh`
 

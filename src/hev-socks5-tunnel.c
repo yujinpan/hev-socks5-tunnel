@@ -7,6 +7,7 @@
  ============================================================================
  */
 
+#include <time.h>
 #include <errno.h>
 #include <assert.h>
 #include <signal.h>
@@ -30,6 +31,7 @@
 #include "hev-logger.h"
 #include "hev-tunnel.h"
 #include "hev-compiler.h"
+#include "hev-ipv6-reject.h"
 #include "hev-socks5-session-tcp.h"
 #include "hev-socks5-session-udp.h"
 
@@ -55,6 +57,14 @@ static size_t stat_tx_packets;
 static size_t stat_rx_packets;
 static size_t stat_tx_bytes;
 static size_t stat_rx_bytes;
+
+/* Written only by the lwIP IO task; read by the embedder, also after
+ * hev_socks5_tunnel_main returns, so they reset on init instead of fini. */
+static atomic_size_t stat_ipv6_replied;
+static atomic_size_t stat_ipv6_dropped;
+
+static HevIPv6RejectLimiter ipv6_limiter;
+static uint8_t ipv6_reply[HEV_IPV6_REJECT_MAX_REPLY];
 
 static struct netif *netif;
 static struct tcp_pcb *tcp;
@@ -253,6 +263,34 @@ event_task_entry (void *data)
     hev_task_del_fd (task_event, event_fds[0]);
 }
 
+static uint64_t
+monotonic_ms (void)
+{
+    struct timespec ts;
+
+    clock_gettime (CLOCK_MONOTONIC, &ts);
+
+    return (uint64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+}
+
+/* lwIP is built without IPv6. Answer IPv6 packets here so the sender fails
+ * at once instead of retransmitting until its own timeout. */
+static void
+ipv6_reject (const struct pbuf *buf)
+{
+    size_t len;
+
+    len = hev_ipv6_reject_build (buf->payload, buf->len, ipv6_reply);
+    if (len && hev_ipv6_reject_limiter_take (&ipv6_limiter, monotonic_ms ()) &&
+        hev_tunnel_write_ipv6 (tun_fd, ipv6_reply, len) > 0) {
+        atomic_fetch_add_explicit (&stat_ipv6_replied, 1,
+                                   memory_order_relaxed);
+        return;
+    }
+
+    atomic_fetch_add_explicit (&stat_ipv6_dropped, 1, memory_order_relaxed);
+}
+
 static void
 lwip_io_task_entry (void *data)
 {
@@ -271,6 +309,12 @@ lwip_io_task_entry (void *data)
 
         stat_tx_packets++;
         stat_tx_bytes += buf->tot_len;
+
+        if ((((uint8_t *)buf->payload)[0] >> 4) == 6) {
+            ipv6_reject (buf);
+            pbuf_free (buf);
+            continue;
+        }
 
         hev_task_mutex_lock (&mutex);
         if (netif->input (buf, netif) != ERR_OK)
@@ -532,6 +576,10 @@ hev_socks5_tunnel_init (int tun_fd)
 
     LOG_D ("socks5 tunnel init");
 
+    atomic_store_explicit (&stat_ipv6_replied, 0, memory_order_relaxed);
+    atomic_store_explicit (&stat_ipv6_dropped, 0, memory_order_relaxed);
+    hev_ipv6_reject_limiter_init (&ipv6_limiter, monotonic_ms ());
+
     res = tunnel_init (tun_fd);
     if (res < 0)
         goto exit;
@@ -655,4 +703,16 @@ hev_socks5_tunnel_stats (size_t *tx_packets, size_t *tx_bytes,
 
     if (rx_bytes)
         *rx_bytes = stat_rx_bytes;
+}
+
+void
+hev_socks5_tunnel_ipv6_stats (size_t *replied, size_t *dropped)
+{
+    if (replied)
+        *replied = atomic_load_explicit (&stat_ipv6_replied,
+                                         memory_order_relaxed);
+
+    if (dropped)
+        *dropped = atomic_load_explicit (&stat_ipv6_dropped,
+                                         memory_order_relaxed);
 }
