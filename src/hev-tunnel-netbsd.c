@@ -30,7 +30,7 @@
 static char tun_name[IFNAMSIZ];
 
 int
-hev_tunnel_open (const char *name, int multi_queue)
+hev_tunnel_open (const char *name, int multi_queue, const char *guid)
 {
     char buf[256];
     int one = 1;
@@ -38,7 +38,7 @@ hev_tunnel_open (const char *name, int multi_queue)
     int fd;
 
     snprintf (buf, sizeof (buf), "/dev/%s", name);
-    fd = hev_task_io_open (buf, O_RDWR);
+    fd = hev_task_io_open (buf, O_RDWR | O_CLOEXEC);
     if (fd < 0)
         goto fail;
 
@@ -74,6 +74,17 @@ hev_tunnel_close (int fd)
     ioctl (fd, SIOCIFDESTROY, (void *)&ifr);
 
     close (fd);
+}
+
+void
+hev_tunnel_set_offload (int fd, int offload)
+{
+}
+
+int
+hev_tunnel_get_offload (void)
+{
+    return 0;
 }
 
 int

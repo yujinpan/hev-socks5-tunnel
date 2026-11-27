@@ -9,6 +9,7 @@
 
 #if defined(__APPLE__) || defined(__MACH__)
 
+#include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -37,7 +38,7 @@
 static char tun_name[IFNAMSIZ];
 
 int
-hev_tunnel_open (const char *name, int multi_queue)
+hev_tunnel_open (const char *name, int multi_queue, const char *guid)
 {
 #if TARGET_OS_OSX
     socklen_t len = IFNAMSIZ;
@@ -76,6 +77,10 @@ hev_tunnel_open (const char *name, int multi_queue)
     if (res < 0)
         goto exit_close;
 
+    res = fcntl (fd, F_SETFD, FD_CLOEXEC);
+    if (res < 0)
+        goto exit_close;
+
     res = getsockopt (fd, SYSPROTO_CONTROL, UTUN_OPT_IFNAME, tun_name, &len);
     if (res < 0)
         goto exit_close;
@@ -95,6 +100,17 @@ void
 hev_tunnel_close (int fd)
 {
     close (fd);
+}
+
+void
+hev_tunnel_set_offload (int fd, int offload)
+{
+}
+
+int
+hev_tunnel_get_offload (void)
+{
+    return 0;
 }
 
 int

@@ -3,6 +3,8 @@
 tunnel:
   # Interface name
   name: tun0
+  # Interface GUID (Windows)
+# guid: 12345678-9abc-def0-1234-56789abcdef0
   # Interface MTU
   mtu: 8500
   # Multi-queue
@@ -13,6 +15,15 @@ tunnel:
   ipv6: 'fc00::1'
   # ICMP Echo mode (off|reply)
   icmp: 'off'
+  # Offloads (Linux), each one is used only if the kernel supports it
+# offload:
+    # TCP segmentation offload
+#   tso: true
+    # UDP segmentation offload
+#   uso: true
+    # Send TCP segments larger than the MTU without TSO, only for local
+    # delivery, disable it if the traffic is forwarded to other interfaces
+#   jumbo: true
   # Post up script
 # post-up-script: up.sh
   # Pre down script
@@ -53,6 +64,9 @@ socks5:
 #misc:
   # task stack size (bytes)
 # task-stack-size: 86016
+  # wintun ring buffer capacity (bytes, windows only, power of two,
+  # range: 131072 - 67108864)
+# wintun-ring-capacity: 524288
   # tcp buffer size (bytes)
 # tcp-buffer-size: 65536
   # udp socket recv buffer (SO_RCVBUF) size (bytes)

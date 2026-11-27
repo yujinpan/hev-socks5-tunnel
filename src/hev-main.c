@@ -18,6 +18,7 @@
 #include <hev-socks5-misc.h>
 
 #include "hev-utils.h"
+#include "hev-compiler.h"
 #include "hev-config.h"
 #include "hev-config-const.h"
 #include "hev-logger.h"
@@ -78,6 +79,7 @@ hev_socks5_tunnel_main_inner (int tun_fd)
     hev_socks5_tunnel_run ();
 
     hev_socks5_tunnel_fini ();
+    lwip_fini ();
 
 free_task_sys:
     hev_task_system_fini ();
@@ -89,7 +91,7 @@ exit:
     return res;
 }
 
-int
+EXPORT_SYMBOL int
 hev_socks5_tunnel_main_from_file (const char *config_path, int tun_fd)
 {
     int res = hev_config_init_from_file (config_path);
@@ -99,7 +101,7 @@ hev_socks5_tunnel_main_from_file (const char *config_path, int tun_fd)
     return hev_socks5_tunnel_main_inner (tun_fd);
 }
 
-int
+EXPORT_SYMBOL int
 hev_socks5_tunnel_main_from_str (const unsigned char *config_str,
                                  unsigned int config_len, int tun_fd)
 {
@@ -110,13 +112,13 @@ hev_socks5_tunnel_main_from_str (const unsigned char *config_str,
     return hev_socks5_tunnel_main_inner (tun_fd);
 }
 
-int
+EXPORT_SYMBOL int
 hev_socks5_tunnel_main (const char *config_path, int tun_fd)
 {
     return hev_socks5_tunnel_main_from_file (config_path, tun_fd);
 }
 
-void
+EXPORT_SYMBOL void
 hev_socks5_tunnel_quit (void)
 {
     hev_socks5_tunnel_stop ();

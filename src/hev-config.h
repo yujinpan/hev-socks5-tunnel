@@ -30,8 +30,10 @@ int hev_config_init_from_str (const unsigned char *config_str,
                               unsigned int config_len);
 
 const char *hev_config_get_tunnel_name (void);
+const char *hev_config_get_tunnel_guid (void);
 unsigned int hev_config_get_tunnel_mtu (void);
 int hev_config_get_tunnel_multi_queue (void);
+int hev_config_get_tunnel_offload (void);
 int hev_config_get_tunnel_icmp (void);
 
 const char *hev_config_get_tunnel_ipv4_address (void);
@@ -49,6 +51,7 @@ int hev_config_get_mapdns_netmask (void);
 int hev_config_get_mapdns_cache_size (void);
 
 int hev_config_get_misc_task_stack_size (void);
+int hev_config_get_misc_wintun_ring_capacity (void);
 int hev_config_get_misc_tcp_buffer_size (void);
 int hev_config_get_misc_udp_recv_buffer_size (void);
 int hev_config_get_misc_udp_copy_buffer_nums (void);
